@@ -262,7 +262,7 @@ impl Chip8 {
     fn RNDCxkk(&mut self) {
         let x = (self.opcode() >> 8) & 0xF;
         let k = (self.opcode() & 0xFF) as u8;
-        self.reg[x as usize] = k & 1;
+        self.reg[x as usize] = k & rand::random::<u8>();
     }
     fn DRWDxyn(&mut self) {
         self.display_changed = true;
