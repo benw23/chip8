@@ -1,6 +1,9 @@
 extern crate rand;
 extern crate minifb;
 
+use std::{env, io};
+use minifb::{Key, Window, WindowOptions};
+
 const FONT: [u8;80] = [
 	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 	0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -58,6 +61,13 @@ impl Chip8 {
         for (i,val) in buf.iter().enumerate() {
             self.mem[i + (start as usize)] = *val;
         }
+    }
+
+    fn load_file(&mut self, path: &str) ->  io::Result<()> {
+        let f = std::fs::read(path)?;
+        self.load(0x200, &f);
+
+        return Ok(());
     }
 
     fn update_keys(&mut self, keys: &[bool; 16]) {
@@ -363,16 +373,48 @@ impl Chip8 {
         }
     }
 }
+
+fn show_help() {
+    println!("Usage: chip8 [rom] [frameskip (default 16)]");
+}
+
 fn main() {
-    use minifb::{Key, Window, WindowOptions};
+    let mut frameskip = 16;
+
+    let args: Vec<String> = env::args().collect();
+    match args.len() {
+        1 => {
+            show_help();
+            return;
+        }
+        2 => {
+            if args[1] == "--help" || args[1] == "-h" {
+                show_help();
+                return;
+            }
+        }
+        3 => {
+            if let Ok(p) = args[2].parse::<usize>() {
+                frameskip = p;
+            } else {
+                eprintln!("Error: Invalid argument");
+                return;
+            }
+        }
+        _ => {
+            eprintln!("Error: Invalid number of arguments");
+            return;
+        }
+    }
 
     let mut vm = Chip8::new();
 
-    let args: Vec<String> = std::env::args().collect();
-    let f = std::fs::read(&args[1]).unwrap();
-    let frameskip = if args.len() > 2 { args[2].parse::<usize>().unwrap() } else { 16 };
-    
-    vm.load(0x200, &f);
+    let rom_path = &args[1];
+
+    if let Err(_) = vm.load_file(rom_path) {
+        eprintln!("Error: Could not load file");
+        return;
+    }
 
     let mut window = Window::new(
         "Chip8",
@@ -387,7 +429,7 @@ fn main() {
             ..WindowOptions::default()
         },
     )
-    .unwrap();
+    .expect("Could not create window");
 
     window.limit_update_rate(Some(std::time::Duration::from_micros(16600)));
 
